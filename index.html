@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Golden Circle</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Leaflet CSS and JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Maplibre GL -->
+    <link href="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.css" rel="stylesheet" />
+    <script src="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.js"></script>
+
+    <!-- Maplibre GL Leaflet  -->
+    <script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet/leaflet-maplibre-gl.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #map {
+            height: 100vh;
+            width: 100vw;
+        }
+
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 50px;
+            background: white;
+            padding: 15px;
+            font-family: sans-serif;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            width: 300px;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .control-group {
+            margin-bottom: 12px;
+        }
+
+        .control-group:last-child {
+            margin-bottom: 0;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            font-size: 13px;
+            margin-bottom: 4px;
+        }
+
+        input[type="text"],
+        input[type="number"] {
+            width: 100%;
+            padding: 6px 8px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        .radio-group {
+            display: flex;
+            gap: 10px;
+            font-weight: normal;
+            font-size: 14px;
+        }
+
+        .radio-group label {
+            font-weight: normal;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .search-container {
+            display: flex;
+            gap: 6px;
+        }
+
+        button {
+            padding: 6px 12px;
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: #059669;
+        }
+
+        /* Styling for the new Pub Button */
+        #pub-btn {
+            width: 100%;
+            padding: 8px;
+            background: #f59e0b;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            display: none;
+            /* Hidden by default until a polygon exists */
+            transition: background 0.2s;
+        }
+
+        #pub-btn:hover {
+            background: #d97706;
+        }
+
+        #pub-btn.active {
+            background: #ef4444;
+            /* Toggle off styling */
+        }
+
+        #pub-list-container {
+            margin-top: 10px;
+            border-top: 1px solid #eee;
+            padding-top: 10px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .pub-list-title {
+            font-weight: bold;
+            font-size: 13px;
+            margin-bottom: 6px;
+            color: #333;
+        }
+
+        #pub-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+            font-size: 13px;
+        }
+
+        #pub-list li {
+            padding: 6px 8px;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        #pub-list li:hover {
+            background-color: #f7f7f7;
+            color: #10b981;
+        }
+
+        .pub-status {
+            font-size: 12px;
+            color: #666;
+            font-style: italic;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="controls">
+        <div class="control-group">
+            <label for="address-input">Starting Location</label>
+            <div class="search-container">
+                <input type="text" id="address-input" placeholder="e.g. Greenwich, London" />
+                <button id="search-btn">Go</button>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label>Mode of Transport</label>
+            <div class="radio-group">
+                <label><input type="radio" name="mode" value="walk" checked> Walk</label>
+                <label><input type="radio" name="mode" value="bicycle"> Bike</label>
+                <label><input type="radio" name="mode" value="drive"> Drive</label>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label for="time-input">Travel Time (minutes)</label>
+            <input type="number" id="time-input" value="15" min="1" max="120" />
+        </div>
+
+        <div class="control-group">
+            <button id="pub-btn">🍺 Show me pubs!</button>
+        </div>
+
+        <div id="pub-list-container">
+            <div class="pub-list-title" id="pub-count-header">Pubs in Reach</div>
+            <div id="pub-status" class="pub-status"></div>
+            <ul id="pub-list"></ul>
+        </div>
+    </div>
+
+    <div id="map"></div>
+
+    <script>
+
+        const map = L.map('map').setView([51.5074, -0.1276], 13);
+
+        L.maplibreGL({
+            style: 'https://tiles.openfreemap.org/styles/dark',
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap contributors',
+        }).addTo(map);
+
+        let marker = null;
+        let isochroneLayer = null;
+        let currentLatLng = null;
+        let currentPolygonGeoJSON = null;
+        let isPubModeActive = false;
+        let pubMarkersGroup = L.layerGroup().addTo(map);
+
+        function debounce(func, delay = 400) {
+            let timeoutId;
+            return function (...args) {
+                clearTimeout(timeoutId);
+                timeoutId = setTimeout(() => {
+                    func.apply(this, args);
+                }, delay);
+            };
+        }
+
+        const debouncedFetchAndDrawIsochrone = debounce(() => {
+            fetchAndDrawIsochrone();
+        }, 400);
+
+        map.on('click', async (e) => {
+            currentLatLng = e.latlng;
+            updateMarker(currentLatLng.lat, currentLatLng.lng);
+            await fetchAndDrawIsochrone();
+        });
+
+        document.getElementById('search-btn').addEventListener('click', geocodeAddress);
+        document.getElementById('address-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') geocodeAddress();
+        });
+
+        document.querySelectorAll('input[name="mode"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                if (currentLatLng) debouncedFetchAndDrawIsochrone();
+            });
+        });
+
+        document.getElementById('time-input').addEventListener('input', () => {
+            if (currentLatLng) debouncedFetchAndDrawIsochrone();
+        });
+
+        // Pub Button Click Event Handler
+        const pubBtn = document.getElementById('pub-btn');
+        const pubListContainer = document.getElementById('pub-list-container');
+
+        pubBtn.addEventListener('click', () => {
+            isPubModeActive = !isPubModeActive;
+
+            if (isPubModeActive) {
+                pubBtn.classList.add('active');
+                pubBtn.innerText = '🍺 Hide Pubs';
+                pubListContainer.style.display = 'block';
+                if (currentPolygonGeoJSON) {
+                    fetchPubsInPolygon(currentPolygonGeoJSON);
+                }
+            } else {
+                pubBtn.classList.remove('active');
+                pubBtn.innerText = '🍺 Find Pubs in Area';
+                pubListContainer.style.display = 'none';
+                pubMarkersGroup.clearLayers();
+            }
+        });
+
+        function updateMarker(lat, lng) {
+            if (marker) {
+                marker.setLatLng([lat, lng]);
+            } else {
+                marker = L.marker([lat, lng]).addTo(map);
+            }
+        }
+
+        async function geocodeAddress() {
+            const query = document.getElementById('address-input').value.trim();
+            if (!query) return;
+
+            const url = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(query)}&apiKey=${GEOAPIFY_API_KEY}`;
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.features && data.features.length > 0) {
+                    const [lng, lat] = data.features[0].geometry.coordinates;
+                    currentLatLng = { lat, lng };
+
+                    map.setView([lat, lng], 13);
+                    updateMarker(lat, lng);
+                    await fetchAndDrawIsochrone();
+                } else {
+                    alert('Location not found. Please try a different query.');
+                }
+            } catch (err) {
+                console.error('Geocoding Error:', err);
+            }
+        }
+
+        async function fetchAndDrawIsochrone() {
+            if (!currentLatLng) return;
+
+            const mode = document.querySelector('input[name="mode"]:checked').value;
+            const minutes = parseInt(document.getElementById('time-input').value, 10) || 15;
+            const seconds = minutes * 60;
+
+            const url = `https://api.geoapify.com/v1/isoline?lat=${currentLatLng.lat}&lon=${currentLatLng.lng}&type=time&mode=${mode}&range=${seconds}&apiKey=${GEOAPIFY_API_KEY}&avoid=highways|ferries`;
+
+            try {
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`API Error ${response.status}: ${errorText}`);
+                }
+
+                const data = await response.json();
+                currentPolygonGeoJSON = data;
+
+                if (isochroneLayer) {
+                    map.removeLayer(isochroneLayer);
+                }
+
+                isochroneLayer = L.geoJSON(data, {
+                    style: {
+                        color: '#EBD917',
+                        fillColor: '#EBD917',
+                        fillOpacity: 0.2,
+                        weight: 1
+                    }
+                }).addTo(map);
+
+                // Reveal the pub button now that a polygon exists
+                pubBtn.style.display = 'block';
+
+                // Automatically update pub search if Pub Mode is already active
+                if (isPubModeActive) {
+                    await fetchPubsInPolygon(data);
+                }
+
+            } catch (err) {
+                console.error('Geoapify Error:', err);
+            }
+        }
+
+        async function fetchPubsInPolygon(geojsonData) {
+            pubMarkersGroup.clearLayers();
+            const listElement = document.getElementById('pub-list');
+            const statusElement = document.getElementById('pub-status');
+            const headerElement = document.getElementById('pub-count-header');
+
+            listElement.innerHTML = '';
+            statusElement.innerText = 'Searching for pubs...';
+            headerElement.innerText = 'Pubs in Reach';
+
+            const feature = geojsonData.features[0];
+            let coords = [];
+
+            if (feature.geometry.type === 'Polygon') {
+                coords = feature.geometry.coordinates[0];
+            } else if (feature.geometry.type === 'MultiPolygon') {
+                coords = feature.geometry.coordinates[0][0];
+            }
+
+            if (!coords || coords.length === 0) {
+                statusElement.innerText = 'Invalid area shape.';
+                return;
+            }
+
+            const first = coords[0];
+            const last = coords[coords.length - 1];
+            if (first[0] !== last[0] || first[1] !== last[1]) {
+                coords.push(first);
+            }
+
+            const polyString = coords.map(p => `${p[1]} ${p[0]}`).join(' ');
+
+            const overpassQuery = `
+                [out:json][timeout:25];
+                (
+                  node["amenity"="pub"](poly:"${polyString}");
+                  way["amenity"="pub"](poly:"${polyString}");
+                );
+                out center;
+            `;
+
+            const endpoints = [
+                'https://overpass-api.de/api/interpreter',
+                'https://overpass.kumi.systems/api/interpreter',
+                'https://maps.mail.ru/osm/tools/overpass/api/interpreter'
+            ];
+
+            let result = null;
+            let lastError = null;
+
+            for (const url of endpoints) {
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+                        },
+                        body: new URLSearchParams({ data: overpassQuery })
+                    });
+
+                    if (!response.ok) {
+                        const errText = await response.text();
+                        throw new Error(`HTTP ${response.status}: ${errText.slice(0, 100)}`);
+                    }
+
+                    result = await response.json();
+                    break;
+                } catch (err) {
+                    console.warn(`Endpoint ${url} failed:`, err);
+                    lastError = err;
+                }
+            }
+
+            if (!result) {
+                console.error('All Overpass endpoints failed:', lastError);
+                statusElement.innerText = 'Error loading pubs (Server busy or rate-limited).';
+                return;
+            }
+
+            const pubs = result.elements;
+            statusElement.innerText = '';
+            headerElement.innerText = `Pubs in Reach (${pubs.length})`;
+
+            if (pubs.length === 0) {
+                statusElement.innerText = 'No pubs found within this area.';
+                return;
+            }
+
+            pubs.forEach(pub => {
+                const lat = pub.lat || (pub.center && pub.center.lat);
+                const lon = pub.lon || (pub.center && pub.center.lon);
+                const name = (pub.tags && pub.tags.name) ? pub.tags.name : 'Unnamed Pub';
+
+                if (!lat || !lon) return;
+
+                const pubMarker = L.circleMarker([lat, lon], {
+                    radius: 6,
+                    fillColor: '#EBD917',
+                    color: '#000',
+                    weight: 1,
+                    opacity: 1,
+                    fillOpacity: 0.9
+                }).bindPopup(`<b>${name}</b>`);
+
+                pubMarkersGroup.addLayer(pubMarker);
+
+                const li = document.createElement('li');
+                li.innerText = name;
+                li.addEventListener('click', () => {
+                    map.setView([lat, lon], 16);
+                    pubMarker.openPopup();
+                });
+                listElement.appendChild(li);
+            });
+        }
+    </script>
+
+</body>
+
+</html>
