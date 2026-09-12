@@ -8,6 +8,27 @@ L.maplibreGL({
     attribution: '&copy; OpenStreetMap contributors',
 }).addTo(map);
 
+let currentLocation = null
+
+window.onload = function () {
+    if ("geolocation" in navigator) {
+        navigator.geolocation.getCurrentPosition((position) => {
+            currentLocation = [position.coords.latitude, position.coords.longitude]
+            map.flyTo(currentLocation, 15, { duration: 1.5 })
+            const currentLocationMarker = L.circleMarker(currentLocation, {
+                radius: 6,
+                fillColor: '#439eff',
+                color: '#000',
+                weight: 1,
+                opacity: 1,
+                fillOpacity: 1
+            });
+
+            map.addLayer(currentLocationMarker);
+        });
+    }
+};
+
 let marker = null;
 let isochroneLayer = null;
 let currentLatLng = null;
@@ -289,7 +310,7 @@ async function fetchPubsInPolygon(geojsonData) {
         if (!lat || !lon) return;
 
         const pubMarker = L.circleMarker([lat, lon], {
-            radius: 6,
+            radius: 10,
             fillColor: '#EBD917',
             color: '#000',
             weight: 1,
