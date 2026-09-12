@@ -1,5 +1,4 @@
-// const GEOAPIFY_API_KEY = "85867c06d61349a3a6ca728bdb6d3624"
-const GEOAPIFY_API_KEY = "7d2bac1359ab4dea94b16b55b04a5096"
+const GEOAPIFY_API_KEY = "85867c06d61349a3a6ca728bdb6d3624"
 
 const map = L.map('map').setView([51.5074, -0.1276], 15);
 
