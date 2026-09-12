@@ -1,0 +1,204 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overflow: hidden;
+}
+
+#map {
+    height: 100vh;
+    width: 100vw;
+}
+
+/* Floating Control Pill - Centered at Bottom */
+#controls {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    background: #ffffff;
+    border-radius: 28px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    padding: 8px 14px;
+    width: calc(100% - 32px);
+    max-width: 420px;
+    max-height: 60vh;
+    /* Capped so it doesn't take over the screen */
+    display: flex;
+    flex-direction: column;
+}
+
+.search-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#address-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 15px;
+    padding: 8px 4px;
+    background: transparent;
+}
+
+button {
+    border: none;
+    border-radius: 16px;
+    padding: 8px 14px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+#search-btn {
+    background: #10b981;
+    color: white;
+}
+
+#search-btn:hover {
+    background: #059669;
+}
+
+#toggle-options-btn {
+    background: #f3f4f6;
+    color: #374151;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.icon-svg {
+    width: 18px;
+    height: 18px;
+    display: block;
+}
+
+#toggle-options-btn:hover {
+    background: #e5e7eb;
+}
+
+/* Collapsible Section */
+#options-foldout {
+    display: none;
+}
+
+/* Internal scrolling when foldout is active */
+#options-foldout.open {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.control-group {
+    margin-bottom: 12px;
+}
+
+.control-group:last-child {
+    margin-bottom: 0;
+}
+
+label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    color: #4b5563;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+}
+
+input[type="number"] {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+}
+
+.radio-group {
+    display: flex;
+    gap: 12px;
+}
+
+.radio-group label {
+    font-size: 14px;
+    font-weight: normal;
+    text-transform: none;
+    color: #1f2937;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 0;
+    cursor: pointer;
+}
+
+/* Pub Button */
+#pub-btn {
+    width: 100%;
+    background: #f59e0b;
+    color: white;
+    margin-top: 8px;
+    display: none;
+}
+
+#pub-btn:hover {
+    background: #d97706;
+}
+
+#pub-btn.active {
+    background: #ef4444;
+}
+
+/* Pub List Container */
+#pub-list-container {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #e5e7eb;
+    max-height: 180px;
+    overflow-y: auto;
+}
+
+.pub-list-title {
+    font-weight: 700;
+    font-size: 13px;
+    color: #111827;
+    margin-bottom: 6px;
+}
+
+#pub-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+#pub-list li {
+    padding: 8px;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #374151;
+    cursor: pointer;
+}
+
+#pub-list li:hover {
+    background-color: #f3f4f6;
+    color: #10b981;
+}
+
+.pub-status {
+    font-size: 12px;
+    color: #6b7280;
+    font-style: italic;
+}
