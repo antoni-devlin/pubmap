@@ -8,14 +8,16 @@ L.maplibreGL({
     attribution: '&copy; OpenStreetMap contributors',
 }).addTo(map);
 
-let currentLocation = null
+let currentLatLng = null;
 
+// On first load, get the users location, and fire off 
 window.onload = function () {
     if ("geolocation" in navigator) {
         navigator.geolocation.getCurrentPosition((position) => {
-            currentLocation = [position.coords.latitude, position.coords.longitude]
-            map.flyTo(currentLocation, 15, { duration: 1.5 })
-            const currentLocationMarker = L.circleMarker(currentLocation, {
+            // currentLatLng = [position.coords.latitude, position.coords.longitude]
+            currentLatLng = { lat: position.coords.latitude, lng: position.coords.longitude }
+            map.flyTo([currentLatLng.lat, currentLatLng.lng], 15, { duration: 1.5 })
+            const currentLocationMarker = L.circleMarker(currentLatLng, {
                 radius: 6,
                 fillColor: '#439eff',
                 color: '#000',
@@ -23,7 +25,7 @@ window.onload = function () {
                 opacity: 1,
                 fillOpacity: 1
             });
-
+            debouncedFetchAndDrawIsochrone()
             map.addLayer(currentLocationMarker);
         });
     }
@@ -31,7 +33,6 @@ window.onload = function () {
 
 let marker = null;
 let isochroneLayer = null;
-let currentLatLng = null;
 let currentPolygonGeoJSON = null;
 let pubMarkersGroup = L.layerGroup().addTo(map);
 
@@ -114,11 +115,12 @@ const debouncedFetchAndDrawIsochrone = debounce(() => {
     if (currentLatLng) fetchAndDrawIsochrone();
 }, 400);
 
-// Map Click Event - Sets location and runs search
-map.on('click', async (e) => {
-    currentLatLng = e.latlng;
-    updateMarker(currentLatLng.lat, currentLatLng.lng);
-    await fetchAndDrawIsochrone();
+// Map Click Event - Use this to close options menu if it's open
+map.on('click', (e) => {
+    if (optionsFoldout.classList.contains("open")) {
+        // optionsFoldout.classList.toggle('open');
+        optionsFoldout.classList.remove('open');
+    }
 });
 
 // Search Button & Enter Key Events
@@ -128,15 +130,15 @@ document.getElementById('address-input').addEventListener('keypress', (e) => {
 });
 
 // Settings Input Events (Only fire if a search location is active)
-document.querySelectorAll('input[name="mode"]').forEach(radio => {
-    radio.addEventListener('change', () => {
-        if (currentLatLng) debouncedFetchAndDrawIsochrone();
-    });
-});
+// document.querySelectorAll('input[name="mode"]').forEach(radio => {
+//     radio.addEventListener('change', () => {
+//         if (currentLatLng) debouncedFetchAndDrawIsochrone();
+//     });
+// });
 
-document.getElementById('time-input').addEventListener('input', () => {
-    if (currentLatLng) debouncedFetchAndDrawIsochrone();
-});
+// document.getElementById('time-input').addEventListener('input', () => {
+//     if (currentLatLng) debouncedFetchAndDrawIsochrone();
+// });
 
 
 function updateMarker(lat, lng) {
@@ -266,7 +268,7 @@ async function fetchPubsInPolygon(geojsonData) {
     let lastError = null;
 
     let categories = 'catering.pub,catering.taproom'
-    const queryUrl = `https://api.geoapify.com/v2/places?categories=${categories}&filter=geometry:${geometryId}&apiKey=${GEOAPIFY_API_KEY}`
+    const queryUrl = `https://api.geoapify.com/v2/places?categories=${categories}&limit=500&filter=geometry:${geometryId}&apiKey=${GEOAPIFY_API_KEY}`
 
     try {
         console.log(`Trying query to ${queryUrl}`)
